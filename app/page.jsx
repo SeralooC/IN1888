@@ -1,17 +1,53 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function Home() {
   const [file, setFile] = useState(null);
   const [sheet, setSheet] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState({ kind: "idle", message: "" }); // idle | loading | success | error
+  const [dragActive, setDragActive] = useState(false);
+
+  const fileLabel = useMemo(() => {
+    if (!file) return "Arraste e solte o Excel aqui, ou clique para selecionar";
+    return `${file.name} (${Math.ceil(file.size / 1024)} KB)`;
+  }, [file]);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const f = e.dataTransfer?.files?.[0];
+    if (f) setFile(f);
+  }, []);
+
+  const onDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  }, []);
+  const onDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
-    if (!file) { setStatus("Selecione um arquivo Excel."); return; }
+    if (!file) {
+      setStatus({ kind: "error", message: "Selecione um arquivo Excel primeiro." });
+      return;
+    }
 
     try {
-      setStatus("Processando...");
+      setStatus({ kind: "loading", message: "Processando..." });
       const form = new FormData();
       form.append("file", file);
       if (sheet.trim()) form.append("sheet", sheet.trim());
@@ -21,48 +57,140 @@ export default function Home() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || `Erro HTTP ${res.status}`);
       }
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "IN1888.zip"; document.body.appendChild(a);
-      a.click(); a.remove(); URL.revokeObjectURL(url);
-      setStatus("Concluído. Arquivo baixado: IN1888.zip");
+      a.href = url;
+      a.download = "IN1888.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      setStatus({ kind: "success", message: "Concluído. Arquivo baixado: IN1888.zip" });
     } catch (err) {
-      setStatus(`Erro: ${err.message || String(err)}`);
+      setStatus({ kind: "error", message: err?.message || String(err) });
     }
   }
 
+  const isLoading = status.kind === "loading";
+
   return (
-    <main style={{ padding: 24, maxWidth: 720 }}>
-      <h1>Gerador IN1888 (0110 / 0120)</h1>
-      <p>Envie seu Excel (.xlsx/.xls)</p>
-      <form onSubmit={onSubmit}>
-        <div style={{ margin: "12px 0" }}>
-          <input
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-        </div>
-        <div style={{ margin: "12px 0" }}>
-          <label>
-            Aba (opcional):{" "}
-            <input value={sheet} onChange={(e) => setSheet(e.target.value)} placeholder="Ex.: Movimentos" />
-          </label>
-        </div>
-        <button type="submit">Gerar IN1888 (ZIP)</button>
-      </form>
-      <p style={{ marginTop: 16, whiteSpace: "pre-wrap" }}>{status}</p>
-      <details>
-        <summary>Requisitos de colunas</summary>
-        <ul>
-          <li>DATA</li>
-          <li>TIPO (COMPRA/VENDA)</li>
-          <li>QUANTIDADE</li>
-          <li>VALOR TOTAL</li>
-          <li>TAXA FIXA ou Valor das taxas em reais (opcional; se faltar, usa 0)</li>
-        </ul>
-      </details>
+    <main className="container max-w-3xl mx-auto px-4 py-12">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight">Gerador IN1888</h1>
+        <p className="text-muted-foreground mt-1">Crie os arquivos 0110 (COMPRA) e 0120 (VENDA) a partir do seu Excel</p>
+      </div>
+
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            Upload da planilha
+          </CardTitle>
+          <CardDescription>Envie seu Excel (.xlsx/.xls). Opcional: informe o nome da aba.</CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid gap-6">
+            {/* Dropzone */}
+            <div
+              className={`rounded-lg border-2 border-dashed p-6 transition-colors
+                ${dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/60"}`}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+            >
+              <input
+                id="file"
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="sr-only"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              <Label
+                htmlFor="file"
+                className="flex cursor-pointer flex-col items-center gap-2 text-center"
+                title="Selecionar arquivo"
+              >
+                <Upload className="h-6 w-6 opacity-80" />
+                <span className="text-sm text-muted-foreground">{fileLabel}</span>
+                <Button type="button" variant="secondary" size="sm" className="mt-1">
+                  Escolher arquivo
+                </Button>
+              </Label>
+            </div>
+
+            {/* Aba opcional */}
+            <div className="grid gap-2">
+              <Label htmlFor="sheet">Aba (opcional)</Label>
+              <Input
+                id="sheet"
+                placeholder="Ex.: Movimentos"
+                value={sheet}
+                onChange={(e) => setSheet(e.target.value)}
+                maxLength={60}
+              />
+            </div>
+
+            {/* Ações */}
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={!file || isLoading} className="gap-2">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isLoading ? "Gerando..." : "Gerar IN1888 (ZIP)"}
+              </Button>
+
+              {file ? (
+                <Badge variant="secondary" className="truncate max-w-[60%]">
+                  {file.name}
+                </Badge>
+              ) : null}
+            </div>
+
+            {/* Status */}
+            {status.kind === "success" && (
+              <Alert className="border-green-500/30">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Sucesso</AlertTitle>
+                <AlertDescription>{status.message}</AlertDescription>
+              </Alert>
+            )}
+            {status.kind === "error" && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Falhou</AlertTitle>
+                <AlertDescription>{status.message}</AlertDescription>
+              </Alert>
+            )}
+          </form>
+        </CardContent>
+
+        <CardFooter className="text-xs text-muted-foreground">
+          Seus dados não são salvos. O processamento ocorre na função serverless desta aplicação.
+        </CardFooter>
+      </Card>
+
+      {/* Requisitos */}
+      <Card className="mt-8 border-slate-200 dark:border-slate-800">
+        <CardHeader>
+          <CardTitle>Requisitos de colunas</CardTitle>
+          <CardDescription>As colunas podem ter variações de acento/maiúsculas.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ul className="list-disc ml-5 space-y-1 text-sm">
+            <li><code>DATA</code></li>
+            <li><code>TIPO</code> — valores: <Badge variant="outline">COMPRA</Badge> / <Badge variant="outline">VENDA</Badge></li>
+            <li><code>QUANTIDADE</code></li>
+            <li><code>VALOR TOTAL</code></li>
+            <li><code>TAXA FIXA</code> <span className="text-muted-foreground">(ou</span> <code>Valor das taxas em reais</code><span className="text-muted-foreground">)</span></li>
+          </ul>
+          <Separator />
+          <p className="text-xs text-muted-foreground">
+            Saída: dois TXT com layout pipe <code>CODIGO|DATA|I|VALOR|TAXA|CRIPTO|QTD|EXCHANGE|URL|PAIS</code>.
+          </p>
+        </CardContent>
+      </Card>
     </main>
   );
 }

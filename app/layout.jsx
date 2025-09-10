@@ -2,7 +2,7 @@ export const metadata = {
   title: "Gerador IN1888",
   description: "Gera TXT 0110/0120 a partir de Excel",
 };
-
+import "./globals.css";
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
