@@ -175,7 +175,7 @@ export default function Home() {
             </div>
 
             {/* Aba opcional */}
-            <div className="grid gap-2">
+            {/* <div className="grid gap-2">
               <Label htmlFor="sheet">Aba (opcional)</Label>
               <Input
                 id="sheet"
@@ -184,7 +184,7 @@ export default function Home() {
                 onChange={(e) => setSheet(e.target.value)}
                 maxLength={60}
               />
-            </div>
+            </div> */}
 
             {/* Ações */}
             <div className="flex flex-wrap items-center gap-3">
