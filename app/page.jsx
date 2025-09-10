@@ -35,7 +35,7 @@ export default function Home() {
   return (
     <main style={{ padding: 24, maxWidth: 720 }}>
       <h1>Gerador IN1888 (0110 / 0120)</h1>
-      <p>Envie seu Excel (.xlsx/.xls). Opcional: nome da aba.</p>
+      <p>Envie seu Excel (.xlsx/.xls)</p>
       <form onSubmit={onSubmit}>
         <div style={{ margin: "12px 0" }}>
           <input
