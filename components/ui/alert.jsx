@@ -1,15 +1,7 @@
-import { cn } from "@/lib/utils";
-
-export function Alert({ className, variant = "default", ...props }) {
-  const styles =
-    variant === "destructive"
-      ? "border-destructive/50 text-destructive dark:border-destructive"
-      : "border-border text-foreground";
-  return <div role="alert" className={cn("relative w-full rounded-lg border p-4", styles, className)} {...props} />;
+import { cn } from "../../lib/utils";
+export function Alert({ variant="default", className, ...p }){
+  const style = variant==="destructive" ? "border-red-300 text-red-700 bg-red-50" : "border-gray-200 text-gray-800 bg-white";
+  return <div role="alert" {...p} className={cn("rounded-lg border p-4", style, className)} />;
 }
-export function AlertTitle({ className, ...props }) {
-  return <h5 className={cn("mb-1 font-medium leading-none tracking-tight", className)} {...props} />;
-}
-export function AlertDescription({ className, ...props }) {
-  return <div className={cn("text-sm text-muted-foreground [&_p]:leading-relaxed", className)} {...props} />;
-}
+export const AlertTitle = (p)=><h5 {...p} className={cn("mb-1 font-medium", p.className)} />;
+export const AlertDescription = (p)=><div {...p} className={cn("text-sm text-gray-600", p.className)} />;

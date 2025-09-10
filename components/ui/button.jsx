@@ -1,29 +1,10 @@
-import { cn } from "@/lib/utils";
-
-const variants = {
-  default: "bg-primary text-primary-foreground hover:bg-primary/90",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-  outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-  ghost: "hover:bg-accent hover:text-accent-foreground",
-  destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  link: "underline-offset-4 hover:underline text-primary"
-};
-const sizes = {
-  default: "h-10 px-4 py-2",
-  sm: "h-9 px-3",
-  lg: "h-11 px-8",
-  icon: "h-10 w-10"
-};
-
-export function Button({ className, variant = "default", size = "default", ...props }) {
-  return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        variants[variant], sizes[size], className
-      )}
-      {...props}
-    />
-  );
+import { cn } from "../../lib/utils";
+export function Button({ className, variant="default", size="default", ...props }){
+  const v = {
+    default: "bg-blue-600 text-white hover:bg-blue-600/90",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-100/80",
+    outline: "border border-gray-300 bg-white hover:bg-gray-50",
+  }[variant];
+  const s = { default:"h-10 px-4", sm:"h-9 px-3", lg:"h-11 px-6", icon:"h-10 w-10" }[size];
+  return <button {...props} className={cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50", v, s, className)} />;
 }
