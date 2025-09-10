@@ -1,12 +1,12 @@
 // app/api/in1888/route.js
-export const runtime = "nodejs"; // precisa de Node runtime (não Edge)
+export const runtime = "nodejs";      // garante Node runtime na Vercel (não Edge)
 export const dynamic = "force-dynamic";
 
 import * as XLSX from "xlsx";
 import Decimal from "decimal.js";
 import JSZip from "jszip";
 
-// -------- utilidades --------
+// ---------- utilidades ----------
 function stripAccents(s) {
   if (s == null) return "";
   return s
@@ -51,7 +51,7 @@ function toDDMMYYYY(value) {
     const d = excelSerialToDate(value);
     if (!isNaN(d)) return toDDMMYYYY(d);
   }
-  // String comum (tenta padrões dd/mm/yyyy, yyyy-mm-dd, etc.)
+  // String comum (tenta dd/mm/yyyy e yyyy-mm-dd)
   if (typeof value === "string") {
     const s = value.trim();
     let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
@@ -66,7 +66,7 @@ function toDDMMYYYY(value) {
       return `${String(d).padStart(2, "0")}${String(mth).padStart(2, "0")}${y}`;
     }
   }
-  // fallback: devolve string crua
+  // fallback
   return String(value);
 }
 
@@ -78,7 +78,6 @@ function fmtDecimalBR(value, ndigits) {
 }
 
 function normalizeHeaders(row) {
-  // gera um mapa chave-normalizada -> valor
   const out = {};
   for (const k of Object.keys(row)) {
     out[stripAccents(k)] = row[k];
@@ -86,7 +85,7 @@ function normalizeHeaders(row) {
   return out;
 }
 
-// -------- núcleo --------
+// ---------- núcleo ----------
 function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
   const rows0110 = [];
   const rows0120 = [];
@@ -103,12 +102,12 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
   for (const r of rows) {
     const R = normalizeHeaders(r);
 
-    const dataRaw = get(R, ["DATA"]);
-    const tipoRaw = get(R, ["TIPO"]);
-    const qtdRaw = get(R, ["QUANTIDADE"]);
+    const dataRaw  = get(R, ["DATA"]);
+    const tipoRaw  = get(R, ["TIPO"]);
+    const qtdRaw   = get(R, ["QUANTIDADE"]);
     const valorRaw = get(R, ["VALOR TOTAL"]);
-    // "Valor das taxas em reais" não é obrigatória; se ausente usa 0
-    const taxaRaw = get(R, ["TAXA FIXA", "Valor das taxas em reais"]);
+    // taxa: pode vir em "TAXA FIXA" ou "Valor das taxas em reais"
+    const taxaRaw  = get(R, ["TAXA FIXA", "Valor das taxas em reais"]);
 
     const tipo = (tipoRaw ?? "").toString().trim().toUpperCase();
     const codigo = tipoMap[tipo]; // "0110" ou "0120"
@@ -121,27 +120,15 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
     const data = toDDMMYYYY(dataRaw);
 
     let valorFmt, taxaFmt, qtdFmt;
-    try {
-      valorFmt = fmtDecimalBR(valorRaw, 2);
-    } catch {
-      valorFmt = fmtDecimalBR(0, 2);
-    }
-    try {
-      taxaFmt = fmtDecimalBR(taxaRaw ?? 0, 2);
-    } catch {
-      taxaFmt = fmtDecimalBR(0, 2);
-    }
-    try {
-      qtdFmt = fmtDecimalBR(qtdRaw, 10);
-    } catch {
-      qtdFmt = fmtDecimalBR(0, 10);
-    }
+    try { valorFmt = fmtDecimalBR(valorRaw, 2); } catch { valorFmt = fmtDecimalBR(0, 2); }
+    try { taxaFmt  = fmtDecimalBR(taxaRaw ?? 0, 2); } catch { taxaFmt  = fmtDecimalBR(0, 2); }
+    try { qtdFmt   = fmtDecimalBR(qtdRaw, 10); } catch { qtdFmt   = fmtDecimalBR(0, 10); }
 
     const exchange = "BINANCE";
-    const cripto = "USDT";
-    const info = exInfo[exchange] || {};
-    const url = info.url || "";
-    const pais = info.pais || "";
+    const cripto   = "USDT";
+    const info     = exInfo[exchange] || {};
+    const url      = info.url  || "";
+    const pais     = info.pais || "";
 
     const line = [
       codigo,
@@ -173,7 +160,7 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
   };
 }
 
-// -------- handler --------
+// ---------- handler ----------
 export async function POST(request) {
   try {
     const form = await request.formData();
@@ -181,10 +168,10 @@ export async function POST(request) {
     const sheetHint = form.get("sheet"); // opcional
 
     if (!(file instanceof File)) {
-      return new Response(JSON.stringify({ error: "Envie o arquivo Excel em 'file' (multipart/form-data)." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Envie o arquivo Excel em 'file' (multipart/form-data)." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
@@ -194,21 +181,19 @@ export async function POST(request) {
     const ws = wb.Sheets[sheetName];
     if (!ws) throw new Error("Aba não encontrada.");
 
-    // Lê como objetos (uma por linha)
+    // Lê linhas como objetos (cada header vira chave)
     const rows = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
 
-    const tipoMap = { "COMPRA": "0110", "VENDA": "0120" };
-    const exInfo = { "BINANCE": { url: "https://www.binance.com/", pais: "KY" } };
-    const fixI = "I";
+    const tipoMap = { COMPRA: "0110", VENDA: "0120" };
+    const exInfo  = { BINANCE: { url: "https://www.binance.com/", pais: "KY" } };
+    const fixI    = "I";
 
     const result = gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI });
 
-    // Empacota num ZIP com dois arquivos TXT
+    // Empacota num ZIP com dois arquivos TXT + metadados JSON (opcional)
     const zip = new JSZip();
     zip.file("IN1888_0110_COMPRA.txt", result.txt0110, { binary: false });
-    zip.file("IN1888_0120_VENDA.txt", result.txt0120, { binary: false });
-
-    // metadados JSON dentro do zip (opcional, útil para debugging)
+    zip.file("IN1888_0120_VENDA.txt",  result.txt0120,  { binary: false });
     zip.file(
       "IN1888_meta.json",
       JSON.stringify(
