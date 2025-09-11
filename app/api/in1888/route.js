@@ -105,7 +105,7 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
     const dataRaw  = get(R, ["DATA"]);
     const tipoRaw  = get(R, ["TIPO"]);
     const qtdRaw   = get(R, ["QUANTIDADE"]);
-    const valorRaw = get(R, ["VALOR TOTAL"]);
+    const valorRaw = get(R, ["VALOR TOTAL", " VALOR TOTAL"]);
     // taxa: pode vir em "TAXA FIXA" ou "Valor das taxas em reais"
     const taxaRaw  = get(R, ["TAXA FIXA", "Valor das taxas em reais"]);
 
