@@ -96,7 +96,7 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
       const v = normRow[stripAccents(k)];
       if (v !== undefined) return v;
     }
-    return undefined;
+    return 'row undefined';
   };
 
   for (const r of rows) {
