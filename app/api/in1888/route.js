@@ -7,6 +7,7 @@ import Decimal from "decimal.js";
 import JSZip from "jszip";
 
 // ---------- utilidades ----------
+// (mantido para retrocompat, mas usaremos normalizeKey abaixo)
 function stripAccents(s) {
   if (s == null) return "";
   return s
@@ -16,18 +17,34 @@ function stripAccents(s) {
     .toLowerCase();
 }
 
+// *** NOVO: normalização robusta para nomes de colunas/abas
+function normalizeKey(s) {
+  return String(s ?? "")
+    .replace(/\uFEFF/g, "")                           // remove BOM
+    .normalize("NFKC")                                // normaliza forma Unicode
+    .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ") // NBSP e espaços unicode -> espaço normal
+    .replace(/\s+/g, " ")                             // colapsa múltiplos espaços/CR/LF/TAB
+    .trim()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .toLowerCase();
+}
+
 function pickSheet(workbook, requested) {
   const names = workbook.SheetNames || [];
   if (!names.length) throw new Error("Arquivo Excel sem abas.");
-  if (requested && names.includes(requested)) return requested;
+  if (!requested) return names[0];
 
-  if (requested) {
-    const want = stripAccents(requested);
-    for (const n of names) {
-      const norm = stripAccents(n);
-      if (norm === want || norm.includes(want)) return n;
-    }
+  const want = normalizeKey(requested);
+
+  // match exato por normalização
+  for (const n of names) {
+    if (normalizeKey(n) === want) return n;
   }
+  // match por inclusão (parcial)
+  for (const n of names) {
+    if (normalizeKey(n).includes(want)) return n;
+  }
+  // fallback
   return names[0];
 }
 
@@ -49,7 +66,7 @@ function toDDMMYYYY(value) {
   // Número (serial Excel)?
   if (typeof value === "number" && isFinite(value)) {
     const d = excelSerialToDate(value);
-    if (!isNaN(d)) return toDDMMYYYY(d);
+    if (!isNaN(d.getTime())) return toDDMMYYYY(d);   // <-- corrige checagem
   }
   // String comum (tenta dd/mm/yyyy e yyyy-mm-dd)
   if (typeof value === "string") {
@@ -77,35 +94,46 @@ function fmtDecimalBR(value, ndigits) {
   return fixed.replace(".", ",");
 }
 
+// *** ATUALIZADO: normaliza cabeçalhos com normalizeKey (robusto)
 function normalizeHeaders(row) {
   const out = {};
   for (const k of Object.keys(row)) {
-    out[stripAccents(k)] = row[k];
+    out[normalizeKey(k)] = row[k];
   }
   return out;
 }
 
 // ---------- núcleo ----------
+// *** ATUALIZADO: get tolerante (usa normalizeKey e funciona com linha já normalizada)
+function get(row, keyVariants) {
+  const wanted = new Set(keyVariants.map(normalizeKey));
+
+  // fast-path: se 'row' já veio de normalizeHeaders, as chaves já são normalizadas
+  for (const w of wanted) {
+    if (Object.prototype.hasOwnProperty.call(row, w)) {
+      return row[w];
+    }
+  }
+
+  // fallback: linha crua (comparação por iteração)
+  for (const [k, v] of Object.entries(row)) {
+    if (wanted.has(normalizeKey(k))) return v;
+  }
+  return undefined;
+}
+
 function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
   const rows0110 = [];
   const rows0120 = [];
   let ignored = 0;
 
-  const get = (normRow, keyVariants) => {
-    for (const k of keyVariants) {
-      const v = normRow[stripAccents(k)];
-      if (v !== undefined) return v;
-    }
-    return 'row undefined';
-  };
-
   for (const r of rows) {
-    const R = normalizeHeaders(r);
+    const R = normalizeHeaders(r); // chaves normalizadas uma vez
 
     const dataRaw  = get(R, ["DATA"]);
     const tipoRaw  = get(R, ["TIPO"]);
     const qtdRaw   = get(R, ["QUANTIDADE"]);
-    const valorRaw = get(R, ["VALOR TOTAL", " VALOR TOTAL", "VALOR TOTAL "]);
+    const valorRaw = get(R, ["VALOR TOTAL"]); // variações de espaço/acentos já cobertas
     // taxa: pode vir em "TAXA FIXA" ou "Valor das taxas em reais"
     const taxaRaw  = get(R, ["TAXA FIXA", "Valor das taxas em reais"]);
 
