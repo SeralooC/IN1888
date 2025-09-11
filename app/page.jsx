@@ -117,9 +117,6 @@ export default function Home() {
           </CardTitle>
           <CardDescription>
             Envie seu Excel (.xlsx/.xls). Opcional: informe o nome da aba.
-            <br />
-            Colunas usadas para gerar o relatório. (Ordem não obrigatória)
-            | DATA | TIPO | QUANTIDADE | VALOR TOTAL | TAXA FIXA |
           </CardDescription>
         </CardHeader>
 
