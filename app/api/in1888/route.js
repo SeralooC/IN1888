@@ -120,7 +120,8 @@ function gerarRelatoriosFromRows(rows, { sheetName, tipoMap, exInfo, fixI }) {
     const data = toDDMMYYYY(dataRaw);
 
     let valorFmt, taxaFmt, qtdFmt;
-    try { valorFmt = fmtDecimalBR(valorRaw, 2); } catch { valorFmt = fmtDecimalBR(0, 2); }
+    // try { valorFmt = fmtDecimalBR(valorRaw, 2); } catch { valorFmt = fmtDecimalBR(0, 2); }
+    try { valorFmt = fmtDecimalBR(valorRaw, 2); } catch { valorFmt = valorRaw; }
     try { taxaFmt  = fmtDecimalBR(taxaRaw ?? 0, 2); } catch { taxaFmt  = fmtDecimalBR(0, 2); }
     try { qtdFmt   = fmtDecimalBR(qtdRaw, 10); } catch { qtdFmt   = fmtDecimalBR(0, 10); }
 
